@@ -23,6 +23,16 @@ export interface DataDetailsModalProps {
   rowData: RowData; 
 }
 
+export interface DataTableProps {
+  headers: string[]
+  filteredData: CsvRow[]
+  page: number
+  rowsPerPage: number
+  onPageChange: (_event: unknown, newPage: number) => void
+  onRowsPerPageChange: (event: React.ChangeEvent<HTMLInputElement>) => void
+  onRowClick: (rowData: CsvRow) => void
+}
+
 export interface CsvRow {
   [key: string]: string | number | null | undefined 
   Created_DT: string
