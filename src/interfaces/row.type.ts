@@ -18,9 +18,9 @@ interface RowData {
 }
 
 export interface DataDetailsModalProps {
-  open: boolean;
-  handleClose: () => void;
-  rowData: RowData; 
+  open: boolean
+  handleClose: () => void
+  rowData: RowData
 }
 
 export interface DataTableProps {
@@ -33,8 +33,15 @@ export interface DataTableProps {
   onRowClick: (rowData: CsvRow) => void
 }
 
+export interface FilterSectionProps {
+  headers: string[]
+  filters: { [key: string]: string }
+  onFilterChange: (header: string, value: string) => void
+  onClearFilters: () => void
+}
+
 export interface CsvRow {
-  [key: string]: string | number | null | undefined 
+  [key: string]: string | number | null | undefined
   Created_DT: string
   Modified_DT: string
   Entity: string

@@ -1,6 +1,6 @@
 import { Box } from '@mui/material'
 import { ThemeProvider } from '@mui/material/styles'
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { CsvRow } from '../interfaces/row.type'
 import theme from '../theme/theme'
 import DataDetailsModal from './DataDetailsModal'
@@ -58,17 +58,19 @@ const Fmsca: React.FC<{ data: CsvRow[] }> = ({ data }) => {
     })
   }
 
-  const filteredData = data.filter((row) =>
-    Object.keys(filters).every((key) => {
-      const filterValue = filters[key]
-      if (!filterValue) return true
-      // @ts-expect-error
-      const cellValue = row[key as Partial<CsvRow>]?.toString().toLowerCase()
-      return cellValue.includes(filterValue.toLowerCase())
-    })
-  )
-
   const headers = data.length > 0 ? Object.keys(data[0]) : []
+
+  const filteredData = useMemo(() => {
+    return data.filter((row) =>
+      Object.keys(filters).every((key) => {
+        const filterValue = filters[key]
+        if (!filterValue) return true
+        // @ts-expect-error
+        const cellValue = row[key as Partial<CsvRow>]?.toString().toLowerCase()
+        return cellValue.includes(filterValue.toLowerCase())
+      })
+    )
+  }, [data, filters])
 
   return (
     <ThemeProvider theme={theme}>

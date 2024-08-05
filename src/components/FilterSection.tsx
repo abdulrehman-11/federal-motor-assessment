@@ -1,5 +1,3 @@
-// components/FilterSection.tsx
-
 import {
   Box,
   Button,
@@ -11,13 +9,7 @@ import {
   Typography,
 } from '@mui/material'
 import React from 'react'
-
-interface FilterSectionProps {
-  headers: string[]
-  filters: { [key: string]: string }
-  onFilterChange: (header: string, value: string) => void
-  onClearFilters: () => void
-}
+import { FilterSectionProps } from '../interfaces/row.type'
 
 const FilterSection: React.FC<FilterSectionProps> = ({
   headers,
