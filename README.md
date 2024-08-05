@@ -29,7 +29,7 @@ To set up this project locally, follow these steps:
 
    ```bash
    git clone https://github.com/abdulrehman-11/federal-motor-assessment.git
-   cd Spotter
+   cd federal-motor-assessment
    ```
 
 2. **Install Dependencies**
