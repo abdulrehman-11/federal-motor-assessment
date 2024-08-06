@@ -1,5 +1,3 @@
-// workers/worker.ts
-
 interface CsvRow {
   [key: string]: string | number | undefined
 }

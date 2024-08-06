@@ -1,5 +1,3 @@
-// components/PivotTable.tsx
-
 import {
   Box,
   FormControl,
@@ -16,12 +14,38 @@ import {
   TableRow,
   Typography,
 } from '@mui/material'
+import { format, isValid, parse } from 'date-fns'
 import React, { useEffect, useMemo, useState } from 'react'
 import { CsvRow } from '../interfaces/row.type'
 
 interface PivotTableProps {
   data: CsvRow[]
   headers: string[]
+}
+
+// Function to transform dates into desired intervals
+const transformDate = (dateStr: string, interval: string) => {
+  // Specify the expected format of the date string
+  const expectedFormat = 'M/d/yyyy'
+
+  const date = parse(dateStr, expectedFormat, new Date())
+
+  // Check if the date is valid
+  if (!isValid(date)) {
+    console.error(`Invalid date detected: ${dateStr}`)
+    return 'Invalid Date' // or return an empty string or default value
+  }
+
+  switch (interval) {
+    case 'year':
+      return format(date, 'yyyy') // Group by year
+    case 'month':
+      return format(date, 'yyyy-MM') // Group by month
+    case 'week':
+      return format(date, 'yyyy-wo') // Group by week
+    default:
+      return dateStr
+  }
 }
 
 const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
@@ -31,6 +55,8 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
   ])
   const [valuePivot, setValuePivot] = useState<string>('Power units')
   const [aggregation, setAggregation] = useState<string>('sum')
+  const [dateGroupingInterval, setDateGroupingInterval] =
+    useState<string>('none')
   const [pivotData, setPivotData] = useState<{
     [key: string]: { [key: string]: number }
   }>({})
@@ -52,8 +78,42 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
   useEffect(() => {
     if (worker) {
       setLoading(true)
+      const transformedData = data.map((row) => {
+        const transformedRow = { ...row }
+
+        // Apply date transformation to row pivots
+        rowPivots.forEach((pivot) => {
+          if (
+            dateGroupingInterval !== 'none' &&
+            headers.includes(pivot) &&
+            isDateField(pivot)
+          ) {
+            transformedRow[pivot] = transformDate(
+              row[pivot] as string,
+              dateGroupingInterval
+            )
+          }
+        })
+
+        // Apply date transformation to column pivots
+        columnPivots.forEach((pivot) => {
+          if (
+            dateGroupingInterval !== 'none' &&
+            headers.includes(pivot) &&
+            isDateField(pivot)
+          ) {
+            transformedRow[pivot] = transformDate(
+              row[pivot] as string,
+              dateGroupingInterval
+            )
+          }
+        })
+
+        return transformedRow
+      })
+
       worker.postMessage({
-        data,
+        data: transformedData,
         rowPivots,
         columnPivots,
         valuePivot,
@@ -64,25 +124,58 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
         setLoading(false)
       }
     }
-  }, [worker, data, rowPivots, columnPivots, valuePivot, aggregation])
+  }, [
+    worker,
+    data,
+    rowPivots,
+    columnPivots,
+    valuePivot,
+    aggregation,
+    dateGroupingInterval,
+  ])
+
+  // Function to determine if a field is a date field
+  const isDateField = (field: string) => {
+    // A simple check for fields that contain 'DT' or common date patterns
+    return field.includes('DT') || field.toLowerCase().includes('date')
+  }
+
+  // Determine if date grouping should be enabled
+  const enableDateGrouping = useMemo(() => {
+    return rowPivots.some(isDateField) || columnPivots.some(isDateField)
+  }, [rowPivots, columnPivots])
 
   const uniqueColumnValues = useMemo(() => {
     const uniqueValues = new Set<string>()
     data.forEach((row) => {
-      const columnKey = columnPivots.map((pivot) => row[pivot]).join(' / ')
+      const columnKey = columnPivots
+        .map((pivot) => {
+          if (isDateField(pivot) && dateGroupingInterval !== 'none') {
+            return transformDate(row[pivot] as string, dateGroupingInterval)
+          }
+          return row[pivot]
+        })
+        .join(' / ')
       uniqueValues.add(columnKey)
     })
     return Array.from(uniqueValues)
-  }, [data, columnPivots])
+  }, [data, columnPivots, dateGroupingInterval])
 
   const uniqueRowKeys = useMemo(() => {
     const uniqueKeys = new Set<string>()
     data.forEach((row) => {
-      const rowKey = rowPivots.map((pivot) => row[pivot]).join(' / ')
+      const rowKey = rowPivots
+        .map((pivot) => {
+          if (isDateField(pivot) && dateGroupingInterval !== 'none') {
+            return transformDate(row[pivot] as string, dateGroupingInterval)
+          }
+          return row[pivot]
+        })
+        .join(' / ')
       uniqueKeys.add(rowKey)
     })
     return Array.from(uniqueKeys)
-  }, [data, rowPivots])
+  }, [data, rowPivots, dateGroupingInterval])
 
   // Check if the selected value column is numeric
   const isValueColumnNumeric = useMemo(() => {
@@ -171,6 +264,26 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
             </Select>
           </FormControl>
         </Grid>
+        {enableDateGrouping && (
+          <Grid item xs={12} sm={3}>
+            <FormControl fullWidth variant='outlined'>
+              <InputLabel>Date Grouping Interval</InputLabel>
+              <Select
+                value={dateGroupingInterval}
+                onChange={(e) => {
+                  setLoading(true)
+                  setDateGroupingInterval(e.target.value as string)
+                }}
+                label='Date Grouping Interval'
+              >
+                <MenuItem value='none'>None</MenuItem>
+                <MenuItem value='year'>Year</MenuItem>
+                <MenuItem value='month'>Month</MenuItem>
+                <MenuItem value='week'>Week</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        )}
       </Grid>
       {!isValueColumnNumeric && aggregation === 'sum' ? (
         <Typography color='error' sx={{ mb: 2 }}>
