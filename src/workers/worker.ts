@@ -1,26 +1,25 @@
+// workers/worker.ts
+
 interface CsvRow {
-  [key: string]: string | number
+  [key: string]: string | number | undefined
 }
 
 interface WorkerMessage {
   data: CsvRow[]
-  rowPivot: string
-  columnPivot: string
+  rowPivots: string[]
+  columnPivots: string[]
   valuePivot: string
   aggregation: string
 }
 
 self.onmessage = function (e: MessageEvent<WorkerMessage>) {
-  const { data, rowPivot, columnPivot, valuePivot, aggregation } = e.data
-
+  const { data, rowPivots, columnPivots, valuePivot, aggregation } = e.data
   const result: { [key: string]: { [key: string]: number } } = {}
 
   data.forEach((row) => {
-    const rowKey = row[rowPivot] as string
-    const colKey = row[columnPivot] as string
-    let rawValue = row[valuePivot] as string
+    const rowKey = rowPivots.map((pivot) => row[pivot] ?? '-').join(' / ')
 
-    const value = parseFloat(rawValue) || 0
+    const colKey = columnPivots.map((pivot) => row[pivot] ?? '-').join(' / ')
 
     if (!result[rowKey]) {
       result[rowKey] = {}
@@ -29,15 +28,16 @@ self.onmessage = function (e: MessageEvent<WorkerMessage>) {
       result[rowKey][colKey] = 0
     }
 
-    switch (aggregation) {
-      case 'sum':
-        result[rowKey][colKey] += value
-        break
-      case 'count':
-        result[rowKey][colKey] += 1
-        break
-      default:
-        break
+    let rawValue = row[valuePivot]
+    if (typeof rawValue === 'string') {
+      rawValue = rawValue === '-' ? '0' : rawValue
+    }
+    const value = parseFloat(rawValue as string) || 0
+
+    if (aggregation === 'sum') {
+      result[rowKey][colKey] += value
+    } else if (aggregation === 'count') {
+      result[rowKey][colKey] += 1
     }
   })
 

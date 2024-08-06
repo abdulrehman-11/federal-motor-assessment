@@ -1,3 +1,5 @@
+// components/PivotTable.tsx
+
 import {
   Box,
   FormControl,
@@ -23,8 +25,10 @@ interface PivotTableProps {
 }
 
 const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
-  const [rowPivot, setRowPivot] = useState<string>('Entity')
-  const [columnPivot, setColumnPivot] = useState<string>('Operating status')
+  const [rowPivots, setRowPivots] = useState<string[]>(['Entity'])
+  const [columnPivots, setColumnPivots] = useState<string[]>([
+    'Operating status',
+  ])
   const [valuePivot, setValuePivot] = useState<string>('Power units')
   const [aggregation, setAggregation] = useState<string>('sum')
   const [pivotData, setPivotData] = useState<{
@@ -50,8 +54,8 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
       setLoading(true)
       worker.postMessage({
         data,
-        rowPivot,
-        columnPivot,
+        rowPivots,
+        columnPivots,
         valuePivot,
         aggregation,
       })
@@ -60,15 +64,25 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
         setLoading(false)
       }
     }
-  }, [worker, data, rowPivot, columnPivot, valuePivot, aggregation])
+  }, [worker, data, rowPivots, columnPivots, valuePivot, aggregation])
 
   const uniqueColumnValues = useMemo(() => {
     const uniqueValues = new Set<string>()
     data.forEach((row) => {
-      uniqueValues.add(row[columnPivot] as string)
+      const columnKey = columnPivots.map((pivot) => row[pivot]).join(' / ')
+      uniqueValues.add(columnKey)
     })
     return Array.from(uniqueValues)
-  }, [data, columnPivot])
+  }, [data, columnPivots])
+
+  const uniqueRowKeys = useMemo(() => {
+    const uniqueKeys = new Set<string>()
+    data.forEach((row) => {
+      const rowKey = rowPivots.map((pivot) => row[pivot]).join(' / ')
+      uniqueKeys.add(rowKey)
+    })
+    return Array.from(uniqueKeys)
+  }, [data, rowPivots])
 
   // Check if the selected value column is numeric
   const isValueColumnNumeric = useMemo(() => {
@@ -93,14 +107,15 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
       <Grid container spacing={2} sx={{ marginBottom: 2 }}>
         <Grid item xs={12} sm={3}>
           <FormControl fullWidth variant='outlined'>
-            <InputLabel>Row</InputLabel>
+            <InputLabel>Rows</InputLabel>
             <Select
-              value={rowPivot}
+              multiple
+              value={rowPivots}
               onChange={(e) => {
                 setLoading(true)
-                setRowPivot(e.target.value as string)
+                setRowPivots(e.target.value as string[])
               }}
-              label='Row'
+              label='Rows'
             >
               {headers.map((header) => (
                 <MenuItem key={header} value={header}>
@@ -112,14 +127,15 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
         </Grid>
         <Grid item xs={12} sm={3}>
           <FormControl fullWidth variant='outlined'>
-            <InputLabel>Column</InputLabel>
+            <InputLabel>Columns</InputLabel>
             <Select
-              value={columnPivot}
+              multiple
+              value={columnPivots}
               onChange={(e) => {
                 setLoading(true)
-                setColumnPivot(e.target.value as string)
+                setColumnPivots(e.target.value as string[])
               }}
-              label='Column'
+              label='Columns'
             >
               {headers.map((header) => (
                 <MenuItem key={header} value={header}>
@@ -182,7 +198,7 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
                     zIndex: 2,
                   }}
                 >
-                  {rowPivot}
+                  {rowPivots.join(' / ')}
                 </TableCell>
                 {uniqueColumnValues.map((colValue) => (
                   <TableCell
@@ -200,7 +216,7 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {Object.entries(pivotData).map(([rowKey, columns]) => (
+              {uniqueRowKeys.map((rowKey) => (
                 <TableRow key={rowKey}>
                   <TableCell
                     style={{
@@ -214,7 +230,7 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
                   </TableCell>
                   {uniqueColumnValues.map((colValue) => (
                     <TableCell key={colValue} align='right'>
-                      {columns[colValue] || 0}
+                      {pivotData[rowKey]?.[colValue] || 0}
                     </TableCell>
                   ))}
                 </TableRow>
