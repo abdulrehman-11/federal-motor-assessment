@@ -1,4 +1,4 @@
-import { Box } from '@mui/material'
+import { Box, Button } from '@mui/material'
 import { ThemeProvider } from '@mui/material/styles'
 import React, { useMemo, useState } from 'react'
 import { CsvRow } from '../interfaces/row.type'
@@ -6,6 +6,7 @@ import theme from '../theme/theme'
 import DataDetailsModal from './DataDetailsModal'
 import DataTable from './DataTable'
 import FilterSection from './FilterSection'
+import PivotTable from './PivotTable'
 import { FilterContainer } from './StyledComponents'
 
 const Fmsca: React.FC<{ data: CsvRow[] }> = ({ data }) => {
@@ -20,6 +21,7 @@ const Fmsca: React.FC<{ data: CsvRow[] }> = ({ data }) => {
     'Operating status': '',
     'Power units': '',
   })
+  const [view, setView] = useState<'table' | 'pivot'>('table')
 
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage)
@@ -60,6 +62,7 @@ const Fmsca: React.FC<{ data: CsvRow[] }> = ({ data }) => {
 
   const headers = data.length > 0 ? Object.keys(data[0]) : []
 
+  // Memoize the filtered data to avoid unnecessary recalculations
   const filteredData = useMemo(() => {
     return data.filter((row) =>
       Object.keys(filters).every((key) => {
@@ -70,7 +73,7 @@ const Fmsca: React.FC<{ data: CsvRow[] }> = ({ data }) => {
         return cellValue.includes(filterValue.toLowerCase())
       })
     )
-  }, [data, filters])
+  }, [data, filters]) // Only recalculate if data or filters change
 
   return (
     <ThemeProvider theme={theme}>
@@ -83,15 +86,28 @@ const Fmsca: React.FC<{ data: CsvRow[] }> = ({ data }) => {
             onClearFilters={handleClearFilters}
           />
         </FilterContainer>
-        <DataTable
-          headers={headers}
-          filteredData={filteredData}
-          page={page}
-          rowsPerPage={rowsPerPage}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          onRowClick={handleRowClick}
-        />
+        <Button
+          variant='outlined'
+          sx={{ mb: 2 }}
+          onClick={() =>
+            setView((prev) => (prev === 'table' ? 'pivot' : 'table'))
+          }
+        >
+          Switch to {view === 'table' ? 'Pivot Table' : 'Data Table'}
+        </Button>
+        {view === 'table' ? (
+          <DataTable
+            headers={headers}
+            filteredData={filteredData}
+            page={page}
+            rowsPerPage={rowsPerPage}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            onRowClick={handleRowClick}
+          />
+        ) : (
+          <PivotTable data={filteredData} headers={headers} />
+        )}
       </Box>
       {/* @ts-ignore */}
       <DataDetailsModal
