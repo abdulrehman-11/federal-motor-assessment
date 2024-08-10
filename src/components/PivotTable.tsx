@@ -17,6 +17,7 @@ import {
 import { format, isValid, parse } from 'date-fns'
 import React, { useEffect, useMemo, useState } from 'react'
 import { CsvRow } from '../interfaces/row.type'
+import PivotChart from './PivotChart'
 
 interface PivotTableProps {
   data: CsvRow[]
@@ -352,6 +353,16 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
           </Table>
         </TableContainer>
       )}
+      <Box mt={10}>
+      <PivotChart
+        data={data}
+        headers={headers}
+        rowPivots={rowPivots}
+        columnPivots={columnPivots}
+        valuePivot={valuePivot}
+        dateGroupingInterval={dateGroupingInterval}
+        />
+        </Box>
     </Box>
   )
 }

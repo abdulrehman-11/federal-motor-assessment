@@ -87,7 +87,7 @@ const theme = createTheme({
     MuiTableSortLabel: {
       styleOverrides: {
         icon: {
-          display: "none",
+          // display: "none",
         },
       },
     },

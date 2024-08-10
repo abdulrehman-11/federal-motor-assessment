@@ -1,54 +1,52 @@
-import { Box, Button } from '@mui/material'
-import { ThemeProvider } from '@mui/material/styles'
-import React, { useMemo, useState } from 'react'
-import { CsvRow } from '../interfaces/row.type'
-import theme from '../theme/theme'
-import DataDetailsModal from './DataDetailsModal'
-import DataTable from './DataTable'
-import FilterSection from './FilterSection'
-import PivotTable from './PivotTable'
-import { FilterContainer } from './StyledComponents'
+import React, { useMemo, useState } from 'react';
+import { Box, Button, ThemeProvider } from '@mui/material';
+import { CsvRow, QueryData } from '../interfaces/row.type';
+import theme from '../theme/theme';
+import DataTable from './DataTable';
+import FilterSection from './FilterSection';
+import PivotTable from './PivotTable';
+import { FilterContainer } from './StyledComponents';
 
-const Fmsca: React.FC<{ data: CsvRow[] }> = ({ data }) => {
-  const [page, setPage] = useState(0)
-  const [rowsPerPage, setRowsPerPage] = useState(10)
-  const [selectedRowData, setSelectedRowData] = useState<CsvRow | null>(null)
-  const [modalOpen, setModalOpen] = useState(false)
+interface FmscaProps {
+  data: CsvRow[];
+  setQueryData: (data: QueryData) => void;
+  queryData: QueryData;
+}
+
+const Fmsca: React.FC<FmscaProps> = ({ data: initialData, setQueryData ,queryData}) => {
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [filters, setFilters] = useState<{ [key: string]: string }>({
     Created_DT: '',
     Modified_DT: '',
     Entity: '',
     'Operating status': '',
     'Power units': '',
-  })
-  const [view, setView] = useState<'table' | 'pivot'>('table')
+  });
+  const [view, setView] = useState<'table' | 'pivot'>('table');
+  const [editableCell, setEditableCell] = useState<{ rowIndex: number; header: string } | null>(null);
 
-  const handleChangePage = (_event: unknown, newPage: number) => {
-    setPage(newPage)
-  }
+  const headers = useMemo(() => initialData.length > 0 ? Object.keys(initialData[0]) : [], [initialData]);
 
-  const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setRowsPerPage(+event.target.value)
-    setPage(0)
-  }
-
-  const handleRowClick = (rowData: CsvRow) => {
-    setSelectedRowData(rowData)
-    setModalOpen(true)
-  }
-
-  const handleCloseModal = () => {
-    setModalOpen(false)
-  }
+  const filteredData = useMemo(() => {
+    return initialData
+      .filter((row) =>
+        Object.keys(filters).every((key) => {
+          const filterValue = filters[key];
+          if (!filterValue) return true;
+          const cellValue = row[key as keyof CsvRow]?.toString().toLowerCase();
+          return cellValue?.includes(filterValue.toLowerCase());
+        })
+      )
+      .filter((row) =>
+        Object.values(row).some((value) =>
+          value?.toString().toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      );
+  }, [initialData, filters, searchQuery]);
 
   const handleFilterChange = (header: string, value: string) => {
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      [header]: value,
-    }))
-  }
+    setFilters((prev) => ({ ...prev, [header]: value }));
+  };
 
   const handleClearFilters = () => {
     setFilters({
@@ -57,23 +55,17 @@ const Fmsca: React.FC<{ data: CsvRow[] }> = ({ data }) => {
       Entity: '',
       'Operating status': '',
       'Power units': '',
-    })
-  }
+    });
+    setSearchQuery('');
+  };
 
-  const headers = data.length > 0 ? Object.keys(data[0]) : []
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+  };
 
-  // Memoize the filtered data to avoid unnecessary recalculations
-  const filteredData = useMemo(() => {
-    return data.filter((row) =>
-      Object.keys(filters).every((key) => {
-        const filterValue = filters[key]
-        if (!filterValue) return true
-        // @ts-expect-error
-        const cellValue = row[key as Partial<CsvRow>]?.toString().toLowerCase()
-        return cellValue.includes(filterValue.toLowerCase())
-      })
-    )
-  }, [data, filters]) // Only recalculate if data or filters change
+  const handleFinishEditing = () => {
+    setEditableCell(null);
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -82,16 +74,16 @@ const Fmsca: React.FC<{ data: CsvRow[] }> = ({ data }) => {
           <FilterSection
             headers={headers}
             filters={filters}
+            searchQuery={searchQuery}
             onFilterChange={handleFilterChange}
             onClearFilters={handleClearFilters}
+            onSearchChange={handleSearchChange}
           />
         </FilterContainer>
         <Button
           variant='outlined'
           sx={{ mb: 2 }}
-          onClick={() =>
-            setView((prev) => (prev === 'table' ? 'pivot' : 'table'))
-          }
+          onClick={() => setView((prev) => (prev === 'table' ? 'pivot' : 'table'))}
         >
           Switch to {view === 'table' ? 'Pivot Table' : 'Data Table'}
         </Button>
@@ -99,24 +91,17 @@ const Fmsca: React.FC<{ data: CsvRow[] }> = ({ data }) => {
           <DataTable
             headers={headers}
             filteredData={filteredData}
-            page={page}
-            rowsPerPage={rowsPerPage}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            onRowClick={handleRowClick}
+            editableCell={editableCell}
+            onFinishEditing={handleFinishEditing}
+            setQueryData={setQueryData}
+            queryData={queryData}
           />
         ) : (
           <PivotTable data={filteredData} headers={headers} />
         )}
       </Box>
-      {/* @ts-ignore */}
-      <DataDetailsModal
-        open={modalOpen}
-        handleClose={handleCloseModal}
-        rowData={selectedRowData || {}}
-      />
     </ThemeProvider>
-  )
-}
+  );
+};
 
-export default Fmsca
+export default Fmsca;

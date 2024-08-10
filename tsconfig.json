@@ -10,6 +10,7 @@
   ],
   "compilerOptions": {
     "lib": ["DOM", "ESNext", "WebWorker"],
+    "typeRoots": ["./node_modules/@types", "./src/types"],
     "esModuleInterop": true,
     "module": "ESNext",
     "target": "ESNext",
