@@ -14,39 +14,14 @@ import {
   TableRow,
   Typography,
 } from '@mui/material'
-import { format, isValid, parse } from 'date-fns'
 import React, { useEffect, useMemo, useState } from 'react'
+import { transformDate, transformRowData } from '../common/utils'
 import { CsvRow } from '../interfaces/row.type'
 import PivotChart from './PivotChart'
 
 interface PivotTableProps {
   data: CsvRow[]
   headers: string[]
-}
-
-// Function to transform dates into desired intervals
-const transformDate = (dateStr: string, interval: string) => {
-  // Specify the expected format of the date string
-  const expectedFormat = 'M/d/yyyy'
-
-  const date = parse(dateStr, expectedFormat, new Date())
-
-  // Check if the date is valid
-  if (!isValid(date)) {
-    console.error(`Invalid date detected: ${dateStr}`)
-    return 'Invalid Date' // or return an empty string or default value
-  }
-
-  switch (interval) {
-    case 'year':
-      return format(date, 'yyyy') // Group by year
-    case 'month':
-      return format(date, 'yyyy-MM') // Group by month
-    case 'week':
-      return format(date, 'yyyy-wo') // Group by week
-    default:
-      return dateStr
-  }
 }
 
 const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
@@ -79,39 +54,17 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
   useEffect(() => {
     if (worker) {
       setLoading(true)
-      const transformedData = data.map((row) => {
-        const transformedRow = { ...row }
-
-        // Apply date transformation to row pivots
-        rowPivots.forEach((pivot) => {
-          if (
-            dateGroupingInterval !== 'none' &&
-            headers.includes(pivot) &&
-            isDateField(pivot)
-          ) {
-            transformedRow[pivot] = transformDate(
-              row[pivot] as string,
-              dateGroupingInterval
-            )
-          }
-        })
-
-        // Apply date transformation to column pivots
-        columnPivots.forEach((pivot) => {
-          if (
-            dateGroupingInterval !== 'none' &&
-            headers.includes(pivot) &&
-            isDateField(pivot)
-          ) {
-            transformedRow[pivot] = transformDate(
-              row[pivot] as string,
-              dateGroupingInterval
-            )
-          }
-        })
-
-        return transformedRow
-      })
+      const transformedData = data.map((row) =>
+        transformRowData(
+          row,
+          rowPivots,
+          columnPivots,
+          headers,
+          dateGroupingInterval,
+          transformDate,
+          isDateField
+        )
+      )
 
       worker.postMessage({
         data: transformedData,
@@ -136,7 +89,7 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
   ])
 
   // Function to determine if a field is a date field
-  const isDateField = (field: string) => {
+  const isDateField = (field: string): boolean => {
     // A simple check for fields that contain 'DT' or common date patterns
     return field.includes('DT') || field.toLowerCase().includes('date')
   }
@@ -152,9 +105,12 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
       const columnKey = columnPivots
         .map((pivot) => {
           if (isDateField(pivot) && dateGroupingInterval !== 'none') {
-            return transformDate(row[pivot] as string, dateGroupingInterval)
+            return transformDate(
+              row[pivot as keyof CsvRow] as string,
+              dateGroupingInterval
+            )
           }
-          return row[pivot]
+          return row[pivot as keyof CsvRow] as string
         })
         .join(' / ')
       uniqueValues.add(columnKey)
@@ -168,9 +124,12 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
       const rowKey = rowPivots
         .map((pivot) => {
           if (isDateField(pivot) && dateGroupingInterval !== 'none') {
-            return transformDate(row[pivot] as string, dateGroupingInterval)
+            return transformDate(
+              row[pivot as keyof CsvRow] as string,
+              dateGroupingInterval
+            )
           }
-          return row[pivot]
+          return row[pivot as keyof CsvRow] as string
         })
         .join(' / ')
       uniqueKeys.add(rowKey)
@@ -181,7 +140,7 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
   // Check if the selected value column is numeric
   const isValueColumnNumeric = useMemo(() => {
     return data.every((row) => {
-      let rawValue = row[valuePivot]
+      let rawValue = row[valuePivot as keyof CsvRow]
 
       // Handle "-" or undefined as 0
       if (rawValue === '-' || rawValue === undefined || rawValue === null) {
@@ -244,10 +203,14 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
             <InputLabel>Value</InputLabel>
             <Select
               value={valuePivot}
-              onChange={(e) => setValuePivot(e.target.value as string)}
+              onChange={(e) => {
+                setLoading(true)
+                setValuePivot(e.target.value as string)
+              }}
               label='Value'
             >
               <MenuItem value='Power units'>Power Units</MenuItem>
+              <MenuItem value='Drivers'>Drivers</MenuItem>
             </Select>
           </FormControl>
         </Grid>
@@ -354,15 +317,15 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, headers }) => {
         </TableContainer>
       )}
       <Box mt={10}>
-      <PivotChart
-        data={data}
-        headers={headers}
-        rowPivots={rowPivots}
-        columnPivots={columnPivots}
-        valuePivot={valuePivot}
-        dateGroupingInterval={dateGroupingInterval}
+        <PivotChart
+          data={data}
+          headers={headers}
+          rowPivots={rowPivots}
+          columnPivots={columnPivots}
+          valuePivot={valuePivot}
+          dateGroupingInterval={dateGroupingInterval}
         />
-        </Box>
+      </Box>
     </Box>
   )
 }
